@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>AimpSmtc</AssemblyName>
+    <RootNamespace>AimpSmtc</RootNamespace>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <Product>AIMP SMTC</Product>
+    <AssemblyTitle>AIMP SMTC</AssemblyTitle>
+  </PropertyGroup>
+
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\tray_dark.png">
+      <LogicalName>AimpSmtc.tray_dark.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\tray_light.png">
+      <LogicalName>AimpSmtc.tray_light.png</LogicalName>
+    </EmbeddedResource>
+
+    <!-- popup control icons: white, transparent background -->
+    <EmbeddedResource Include="Resources\Icons\play.png">
+      <LogicalName>AimpSmtc.Icons.play.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Icons\pause.png">
+      <LogicalName>AimpSmtc.Icons.pause.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Icons\next.png">
+      <LogicalName>AimpSmtc.Icons.next.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Icons\previous.png">
+      <LogicalName>AimpSmtc.Icons.previous.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Icons\music-note.png">
+      <LogicalName>AimpSmtc.Icons.music-note.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Icons\artist.png">
+      <LogicalName>AimpSmtc.Icons.artist.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Icons\album.png">
+      <LogicalName>AimpSmtc.Icons.album.png</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>
