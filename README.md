@@ -21,7 +21,7 @@ Run the `install.bat` from **[releases](https://github.com/NimiGames68/aimp-smtc
 
 ‼️**This program requires [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)**‼️
 
-**[Direct Download](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-8.0.422-windows-x64-installer)**
+**[Direct Download of .NET 8](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-8.0.422-windows-x64-installer)**
 
 If you don't want the program to start when you boot windows, remove the program from shell:startup (run that command in the win+r box)
 
