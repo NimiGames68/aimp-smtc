@@ -31,7 +31,7 @@ If you want to build this from source, and don't want to download the install.ba
 
 Download Git (if you haven't already) and run this command
 ```bash
-git clone https://gitlab.com/NimiGames68/aimp-smtc
+git clone https://github.com/NimiGames68/aimp-smtc
 ```
 
 then
