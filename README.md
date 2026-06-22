@@ -113,6 +113,7 @@ the app consumes from 10mb to 30mb of ram in the background.
 
 [BSD 2-Clause License](https://gitlab.com/NimiGames68/aimp-smtc/-/blob/main/LICENSE)
 
+---
 
 #### Want to report a bug, or request a feature?
 
