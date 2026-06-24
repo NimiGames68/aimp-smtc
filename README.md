@@ -100,8 +100,7 @@ AimpSmtc/
 ├── LastFm.cs           - last.fm url builder and generic "open in browser" helper
 ├── AppIdentity.cs      - AUMID/shortcut setup
 ├── Program.cs          - entry point, single-instance guard, error logging
-├── Resources/          - embedded icons (tray, app, popup controls)
-└── install.bat         - build, install, create startup shortcut and create start menu shortcut
+└── Resources/          - embedded icons (tray, app, popup controls)
 ```
 
 ## Some random thing you should know
