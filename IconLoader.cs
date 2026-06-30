@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -63,7 +63,7 @@ internal static class IconLoader
 
         var img = Image.FromStream(stream);
 
-if (isLight)
+        if (isLight)
         {
             // Recolor the white icon to black for the light theme, keeping
             // its alpha shape intact. Uses a ColorMatrix (GDI+-accelerated,
@@ -88,6 +88,7 @@ if (isLight)
             img.Dispose();
             img = recolored;
         }
+
         _iconCache[cacheKey] = img;
         return img;
     }
