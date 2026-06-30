@@ -96,8 +96,9 @@ AimpSmtc/
 ├── TrayApp.cs          - tray icon, poll loop
 ├── PopupMenu.cs        - the click-to-open popup
 ├── Win11Slider.cs      - the popup's progress slider control
-├── IconLoader.cs       - tray/popup icon loading,  it's aware of the theme you are using
+├── IconLoader.cs       - tray/popup icon loading, it's aware of the theme you are using
 ├── LastFm.cs           - last.fm url builder and generic "open in browser" helper
+├── PlaybackLog.cs      - log file with actions user did
 ├── AppIdentity.cs      - AUMID/shortcut setup
 ├── Program.cs          - entry point, single-instance guard, error logging
 └── Resources/          - embedded icons (tray, app, popup controls)
