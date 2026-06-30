@@ -63,25 +63,31 @@ internal static class IconLoader
 
         var img = Image.FromStream(stream);
 
-        if (isLight)
+if (isLight)
         {
-            var inverted = new Bitmap(img.Width, img.Height, PixelFormat.Format32bppArgb);
-            using (var bmp = new Bitmap(img))
+            // Recolor the white icon to black for the light theme, keeping
+            // its alpha shape intact. Uses a ColorMatrix (GDI+-accelerated,
+            // a single DrawImage call) instead of a per-pixel GetPixel/
+            // SetPixel loop, which is slow enough to cause a visible stutter
+            // the first time a placeholder icon paints after switching theme.
+            var recolored = new Bitmap(img.Width, img.Height, PixelFormat.Format32bppArgb);
+            using (var g = Graphics.FromImage(recolored))
+            using (var ia = new ImageAttributes())
             {
-                for (int y = 0; y < bmp.Height; y++)
+                var matrix = new ColorMatrix
                 {
-                    for (int x = 0; x < bmp.Width; x++)
-                    {
-                        Color p = bmp.GetPixel(x, y);
-                        // Make pixel black but keep the original alpha channel
-                        inverted.SetPixel(x, y, Color.FromArgb(p.A, 0, 0, 0));
-                    }
-                }
+                    Matrix00 = 0, // R -> 0
+                    Matrix11 = 0, // G -> 0
+                    Matrix22 = 0, // B -> 0
+                    Matrix33 = 1, // A unchanged
+                };
+                ia.SetColorMatrix(matrix);
+                g.DrawImage(img, new Rectangle(0, 0, img.Width, img.Height),
+                            0, 0, img.Width, img.Height, GraphicsUnit.Pixel, ia);
             }
             img.Dispose();
-            img = inverted;
+            img = recolored;
         }
-
         _iconCache[cacheKey] = img;
         return img;
     }
