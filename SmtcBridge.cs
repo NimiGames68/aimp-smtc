@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using Windows.Media;
@@ -42,20 +42,15 @@ public sealed class SmtcBridge : IDisposable
         _smtc.IsPreviousEnabled = true;
         _smtc.IsStopEnabled     = true;
 
-        // AppMediaId is documented as "Windows 10 [desktop apps only]" - it's
-        // the property meant for unpackaged Win32 apps to declare their
-        // identity to the SMTC, as an alternative to AUMID + shortcut (which
-        // only resolves reliably for MSIX-packaged apps).
         try { _smtc.DisplayUpdater.AppMediaId = AppIdentity.Aumid; }
         catch (Exception ex) { AppIdentity.Log($"AppMediaId failed: {ex.Message}"); }
 
         _smtc.ButtonPressed += OnButton;
 
-        // Lambda here avoids referencing PlaybackPositionChangedEventArgs by
-        // name, which isn't exported by the WinRT projection used in net8.
         _smtc.PlaybackPositionChangeRequested += (_, e) =>
         {
             long ms = (long)e.RequestedPlaybackPosition.TotalMilliseconds;
+            PlaybackLog.Log($"Seek: {PlaybackLog.FormatDuration(ms)}");
             AimpRemote.SetPosition(ms);
         };
 
@@ -70,6 +65,7 @@ public sealed class SmtcBridge : IDisposable
             AimpRemote.SetShuffle(e.RequestedShuffleEnabled);
             _lastShuffle = e.RequestedShuffleEnabled;
             try { _smtc.ShuffleEnabled = e.RequestedShuffleEnabled; } catch { }
+            PlaybackLog.Log($"Shuffle: {(e.RequestedShuffleEnabled ? "on" : "off")} (from SMTC)");
         };
         _smtc.AutoRepeatModeChangeRequested += (_, e) =>
         {
@@ -88,6 +84,7 @@ public sealed class SmtcBridge : IDisposable
                     : MediaPlaybackAutoRepeatMode.None;
             }
             catch { }
+            PlaybackLog.Log($"Repeat: {(wantsRepeat ? "on" : "off")} (from SMTC)");
         };
     }
 
@@ -100,6 +97,7 @@ public sealed class SmtcBridge : IDisposable
                 _smtc.IsEnabled = false;
                 _smtc.DisplayUpdater.ClearAll();
                 _smtc.DisplayUpdater.Update();
+                PlaybackLog.Log("AIMP closed");
             }
             _lastStatus  = (AimpStatus)(-1);
             _lastTitle   = null;
@@ -119,6 +117,8 @@ public sealed class SmtcBridge : IDisposable
             try { _smtc.DisplayUpdater.AppMediaId = AppIdentity.Aumid; } catch { }
         }
 
+        bool trackChanged = info.Title != _lastTitle;
+
         var status = AimpRemote.GetState();
         if (status != _lastStatus)
         {
@@ -129,6 +129,18 @@ public sealed class SmtcBridge : IDisposable
                 AimpStatus.Paused  => MediaPlaybackStatus.Paused,
                 _                  => MediaPlaybackStatus.Stopped,
             };
+            // suppress "Playing" log when it's just a new track starting
+            // - that event is already covered by the "Now playing:" line below
+            if (!(status == AimpStatus.Playing && trackChanged))
+            {
+                PlaybackLog.Log(status switch
+                {
+                    AimpStatus.Playing => "Resumed",
+                    AimpStatus.Paused  => "Paused",
+                    AimpStatus.Stopped => "Stopped",
+                    _                  => $"State: {status}",
+                });
+            }
         }
 
         bool shuffle = AimpRemote.GetShuffle();
@@ -136,6 +148,7 @@ public sealed class SmtcBridge : IDisposable
         {
             _lastShuffle = shuffle;
             try { _smtc.ShuffleEnabled = shuffle; } catch { }
+            PlaybackLog.Log($"Shuffle: {(shuffle ? "on" : "off")}");
         }
 
         bool repeat = AimpRemote.GetRepeat();
@@ -149,16 +162,37 @@ public sealed class SmtcBridge : IDisposable
                     : MediaPlaybackAutoRepeatMode.None;
             }
             catch { }
+            PlaybackLog.Log($"Repeat: {(repeat ? "on" : "off")}");
         }
 
-        long posMs    = AimpRemote.GetPosition();
-        long durMs    = Math.Clamp(info.Duration, 0, 24L * 3_600_000);
-        long posClamp = Math.Clamp(posMs, 0, durMs > 0 ? durMs : long.MaxValue);
+        long posMs = AimpRemote.GetPosition();
+
+        // AIMP doesn't zero out the Duration field in the memory map when
+        // switching to a radio stream - it keeps the previous track's value.
+        // Use two signals: URL scheme in FilePath, AND the live WM_AIMP_PROPERTY
+        // duration (which is more reliable than the memory-map value).
+        bool isUrlStream = info.FilePath.StartsWith("http://",  StringComparison.OrdinalIgnoreCase)
+                        || info.FilePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                        || info.FilePath.StartsWith("rtsp://",  StringComparison.OrdinalIgnoreCase)
+                        || info.FilePath.StartsWith("mms://",   StringComparison.OrdinalIgnoreCase);
+        long liveDur = AimpRemote.GetDuration(); // WM_AIMP_PROPERTY - clears to 0 for streams
+        bool isStream = isUrlStream || liveDur == 0;
+        _isStream = isStream;
+        long durMs = isStream ? 0 : Math.Clamp(liveDur, 0, 24L * 3_600_000);
+
+        // AIMP returns 0xFFFFFFFF (~uint.MaxValue) as a sentinel value
+        // when position is meaningless (e.g. paused on a radio stream).
+        // Treat anything over 24 hours as invalid and fall back to 0.
+        const long MaxValidMs = 24L * 3_600_000;
+        if (posMs < 0 || posMs > MaxValidMs) posMs = 0;
+
+        long posClamp = durMs > 0 ? Math.Clamp(posMs, 0, durMs) : posMs;
 
         try
         {
             if (durMs > 0)
             {
+                // Regular track: full seek bar with known start and end.
                 _smtc.UpdateTimelineProperties(new SystemMediaTransportControlsTimelineProperties
                 {
                     StartTime   = TimeSpan.Zero,
@@ -168,10 +202,12 @@ public sealed class SmtcBridge : IDisposable
                     EndTime     = TimeSpan.FromMilliseconds(durMs),
                 });
             }
-            else
+            else if (trackChanged)
             {
-                // Radio/stream with no known duration - clear the timeline so
-                // the previous track's progress bar doesn't linger on screen.
+                // Stream/radio and the track just changed: explicitly clear
+                // the old timeline so the previous song's duration doesn't
+                // linger. We only do this once (on track change) to avoid
+                // Discord resetting its counter on every 150ms poll tick.
                 _smtc.UpdateTimelineProperties(new SystemMediaTransportControlsTimelineProperties
                 {
                     StartTime   = TimeSpan.Zero,
@@ -184,13 +220,17 @@ public sealed class SmtcBridge : IDisposable
         }
         catch { }
 
-        if (info.Title != _lastTitle)
+        if (trackChanged)
         {
             _lastTitle  = info.Title;
-            _coverDirty = false; // wait for the new cover to arrive
+            _coverDirty = false;
 
-            // TrayApp requests fresh album art when it sees the track change
-            // and forwards the result to OnAlbumArtReceived below.
+            string artist = string.IsNullOrWhiteSpace(info.Artist) ? "Unknown artist" : info.Artist;
+            string album  = string.IsNullOrWhiteSpace(info.Album)  ? "Unknown album"  : info.Album;
+            PlaybackLog.Log(
+                $"Now playing: \"{info.Title}\" by {artist} ({album}), " +
+                $"duration {PlaybackLog.FormatDuration(info.Duration)}");
+
             _ = PushMetadataAsync(info, null);
         }
 
@@ -246,6 +286,10 @@ public sealed class SmtcBridge : IDisposable
         catch { return null; }
     }
 
+    // True when the current source is a URL stream (radio, etc.).
+    // Stored so GetTimeline() can apply the same duration=0 rule.
+    private bool _isStream;
+
     public bool IsPlaying => _lastStatus == AimpStatus.Playing;
 
     private void OnButton(SystemMediaTransportControls _,
@@ -259,22 +303,27 @@ public sealed class SmtcBridge : IDisposable
         {
             case SystemMediaTransportControlsButton.Play:
             case SystemMediaTransportControlsButton.Pause:
-                AimpRemote.PlayPause();
+                TogglePlayPause();
                 break;
-            case SystemMediaTransportControlsButton.Stop:     AimpRemote.Stop();     break;
-            case SystemMediaTransportControlsButton.Next:     AimpRemote.Next();     break;
-            case SystemMediaTransportControlsButton.Previous: AimpRemote.Previous(); break;
+            case SystemMediaTransportControlsButton.Stop:     StopPlayback(); break;
+            case SystemMediaTransportControlsButton.Next:     Next();         break;
+            case SystemMediaTransportControlsButton.Previous: Previous();     break;
         }
     }
 
-    // Called directly by TrayApp/PopupMenu (tray click, popup buttons).
-    public void TogglePlayPause() => AimpRemote.PlayPause();
-    public void Next()            => AimpRemote.Next();
-    public void Previous()        => AimpRemote.Previous();
-    public void StopPlayback()    => AimpRemote.Stop();
+    public void TogglePlayPause() { PlaybackLog.Log("Action: play/pause"); AimpRemote.PlayPause(); }
+    public void Next()            { PlaybackLog.Log("Action: next");       AimpRemote.Next(); }
+    public void Previous()        { PlaybackLog.Log("Action: previous");   AimpRemote.Previous(); }
+    public void StopPlayback()    { PlaybackLog.Log("Action: stop");       AimpRemote.Stop(); }
 
     public (long PositionMs, long DurationMs) GetTimeline()
-        => (AimpRemote.GetPosition(), AimpRemote.GetDuration());
+    {
+        long pos = AimpRemote.GetPosition();
+        long dur = _isStream ? 0 : AimpRemote.GetDuration();
+        const long MaxValidMs = 24L * 3_600_000;
+        if (pos < 0 || pos > MaxValidMs) pos = 0;
+        return (pos, Math.Clamp(dur, 0, MaxValidMs));
+    }
 
     public void Dispose()
     {

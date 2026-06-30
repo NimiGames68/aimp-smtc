@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Windows.Forms;
 using AimpSmtc;
@@ -32,7 +32,9 @@ try
     AppIdentity.EnsureStartMenuShortcut();
 
     ApplicationConfiguration.Initialize();
+    PlaybackLog.Log("AIMP SMTC started");
     Application.Run(new TrayApp());
+    PlaybackLog.Log("AIMP SMTC exited");
 }
 catch (Exception ex)
 {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -29,8 +29,9 @@ internal sealed class Win11Slider : Control
     {
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                   ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
-        Cursor = Cursors.Hand;
-        Height = HaloRadius * 2 + 4;
+        Cursor  = Cursors.Hand;
+        TabStop = true;
+        Height  = HaloRadius * 2 + 4;
     }
 
     public double Value
@@ -77,6 +78,29 @@ internal sealed class Win11Slider : Control
         Invalidate();
     }
 
+    protected override bool IsInputKey(Keys keyData)
+        => keyData is Keys.Left or Keys.Right or Keys.Home or Keys.End || base.IsInputKey(keyData);
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        const double step = 0.02;
+        switch (e.KeyCode)
+        {
+            case Keys.Left:  _value = Math.Clamp(_value - step, 0, 1); break;
+            case Keys.Right: _value = Math.Clamp(_value + step, 0, 1); break;
+            case Keys.Home:  _value = 0; break;
+            case Keys.End:   _value = 1; break;
+            default: return;
+        }
+        Seeked?.Invoke(_value);
+        Invalidate();
+        e.Handled = true;
+    }
+
+    protected override void OnGotFocus(EventArgs e)  { Invalidate(); base.OnGotFocus(e); }
+    protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
@@ -99,5 +123,11 @@ internal sealed class Win11Slider : Control
         g.FillEllipse(coreBrush, coreRect);
         using var corePen = new Pen(CoreBorder, 1f);
         g.DrawEllipse(corePen, coreRect);
+
+        if (Focused)
+        {
+            using var fp = new Pen(Color.FromArgb(120, 200, 210, 255), 1f) { DashStyle = DashStyle.Dot };
+            g.DrawRectangle(fp, 0, 0, Width - 1, Height - 1);
+        }
     }
 }
