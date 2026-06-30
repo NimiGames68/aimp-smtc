@@ -15,15 +15,15 @@ AIMP has no native SMTC support, and the [plugin that was on the store](https://
 
 ## Install
 
-Run the `install.bat` from **[releases](https://github.com/NimiGames68/aimp-smtc/releases/latest)**. That file will do everything automatically. (except install .NET 8, you have to do that manually)
-
-`Install.bat` Will download a zip from assets/AIMPSMTC.zip, extract that zip, (with powershell) build and install the app into `%LOCALAPPDATA%\AimpSmtc`, create a start menu shortcut, a shortcut to start the program with Windows and start the program when the install finishes.
+A already compiled version is in the [releases tab](https://github.com/NimiGames68/aimp-smtc/releases/latest), the exe should be at bin\Release\net8.0-windows10.0.19041.0\win-x64\AimpSmtc.exe
 
 ‼️**This program requires [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)**‼️
 
 **[Direct Download of .NET 8](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-8.0.422-windows-x64-installer)**
 
-If you don't want the program to start when you boot windows, remove the program from shell:startup (run that command in the win+r box)
+Want to run the program when you start windows? Run `shell:startup` in the win+r dialog box, and create a shortcut to that exe.
+
+Want the program in the start menu? Create a shortcut for the program in `C:\Users\somebody\AppData\Roaming\Microsoft\Windows\Start Menu\Programs`.
 
 ## Build manually from source
 
