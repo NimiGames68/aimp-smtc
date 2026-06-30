@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -31,7 +31,7 @@ internal sealed class PopupMenu : Form
     private readonly Label           _timeTotal;
     private readonly Label           _lblTitle;
     private readonly Label           _lblVersion;
-    private readonly Label           _lblExit;
+    private readonly ExitButton       _lblExit;
 
     private string _curTitle = "", _curArtist = "", _curAlbum = "";
     private long   _curDurationMs;
@@ -140,22 +140,13 @@ internal sealed class PopupMenu : Form
             Location = new Point(FixedSize.Width - 16 - 80, sliderY + 24), Size = new Size(80, 16),
         };
 
-        // Exit link, at the bottom below the time row
-        _lblExit = new Label
+        // Exit button at the bottom - keyboard-navigable (TabStop)
+        _lblExit = new ExitButton
         {
-            Text      = "Exit",
-            ForeColor = SubTextColor,
-            BackColor = Color.Transparent,
-            Font      = new Font("Segoe UI", 8.5f),
-            AutoSize  = false,
-            TextAlign = ContentAlignment.MiddleCenter,
-            Cursor    = Cursors.Hand,
-            Location  = new Point(0, sliderY + 24 + 30),
-            Size      = new Size(FixedSize.Width, 20),
+            Location = new Point(0, sliderY + 24 + 26),
+            Size     = new Size(FixedSize.Width, 24),
         };
-        _lblExit.MouseEnter += (_, _) => _lblExit.ForeColor = TextColor;
-        _lblExit.MouseLeave += (_, _) => _lblExit.ForeColor = SubTextColor;
-        _lblExit.Click      += (_, _) => ExitClicked?.Invoke();
+        _lblExit.Click += (_, _) => ExitClicked?.Invoke();
 
         Controls.AddRange(new Control[]
         {
@@ -177,7 +168,6 @@ internal sealed class PopupMenu : Form
         BackColor = BgColor;
         _lblTitle.ForeColor = TextColor;
         _lblVersion.ForeColor = SubTextColor;
-        _lblExit.ForeColor = SubTextColor;
         _timeCurrent.ForeColor = SubTextColor;
         _timeTotal.ForeColor = SubTextColor;
 
@@ -334,14 +324,12 @@ internal sealed class Win11IconButton : Control
 
     public Win11IconButton(string iconName, int size)
     {
-        _icon = IconLoader.LoadPopupIcon(iconName);
-        Size  = new Size(size, size);
-        Cursor = Cursors.Hand;
+        _icon   = IconLoader.LoadPopupIcon(iconName);
+        Size    = new Size(size, size);
+        Cursor  = Cursors.Hand;
+        TabStop = true;
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                   ControlStyles.OptimizedDoubleBuffer, true);
-        // No explicit BackColor: a plain Control doesn't support
-        // Color.Transparent (only Label does), so leaving it unset makes
-        // it inherit the parent's BackColor through the ambient property.
     }
 
     public void SetIcon(string iconName)
@@ -352,13 +340,24 @@ internal sealed class Win11IconButton : Control
 
     protected override void OnMouseEnter(EventArgs e) { _hover = true;  Invalidate(); base.OnMouseEnter(e); }
     protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnGotFocus(EventArgs e)   { Invalidate(); base.OnGotFocus(e); }
+    protected override void OnLostFocus(EventArgs e)  { Invalidate(); base.OnLostFocus(e); }
+
+    protected override bool IsInputKey(Keys keyData)
+        => keyData is Keys.Enter or Keys.Space || base.IsInputKey(keyData);
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.KeyCode is Keys.Enter or Keys.Space) { OnClick(EventArgs.Empty); e.Handled = true; }
+    }
 
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
 
-        if (_hover)
+        if (_hover || Focused)
         {
             using var hoverBrush = new SolidBrush(PopupMenu.HoverBg);
             g.FillEllipse(hoverBrush, 0, 0, Width - 1, Height - 1);
@@ -367,14 +366,21 @@ internal sealed class Win11IconButton : Control
         int iconSize = (int)(Width * 0.46);
         var rect = new Rectangle((Width - iconSize) / 2, (Height - iconSize) / 2, iconSize, iconSize);
         g.DrawImage(_icon, rect);
+
+        if (Focused)
+        {
+            using var pen = new Pen(PopupMenu.TextFg, 1.3f) { DashStyle = DashStyle.Dot };
+            g.DrawEllipse(pen, 1, 1, Width - 3, Height - 3);
+        }
     }
 }
 
 internal sealed class Win11Cover : Control
 {
-    private Image? _cover;
+    private Image?   _cover;
+    private Bitmap?  _scaled; // pre-scaled to control size - avoids OOM in TextureBrush
     private const int Radius = 10;
-    private static Color PlaceholderBg => IconLoader.IsLightTheme() ? Color.FromArgb(230, 230, 230) : Color.FromArgb(45, 45, 48);
+    private static Color PlaceholderBg    => IconLoader.IsLightTheme() ? Color.FromArgb(230, 230, 230) : Color.FromArgb(45, 45, 48);
     private static Color CoverBorderColor => IconLoader.IsLightTheme() ? Color.FromArgb(200, 200, 200) : Color.FromArgb(60, 60, 64);
 
     public Win11Cover()
@@ -387,7 +393,37 @@ internal sealed class Win11Cover : Control
     {
         if (ReferenceEquals(img, _cover)) return;
         _cover?.Dispose();
-        _cover = img;
+        _scaled?.Dispose();
+        _cover  = img;
+        _scaled = null;
+        Invalidate();
+    }
+
+    private Bitmap? GetScaled()
+    {
+        if (_cover == null) return null;
+        if (_scaled != null && _scaled.Width == Width && _scaled.Height == Height)
+            return _scaled;
+
+        // Rebuild scaled copy at control size (typically 84x84).
+        // TextureBrush copies the entire source image into GDI+ memory - if
+        // the raw album art is 1000x1000 that causes an OutOfMemoryException.
+        // Pre-scaling to the actual display size once keeps both memory and
+        // repaint cost low.
+        _scaled?.Dispose();
+        _scaled = new Bitmap(Math.Max(1, Width), Math.Max(1, Height));
+        using var g2 = Graphics.FromImage(_scaled);
+        g2.InterpolationMode  = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+        g2.SmoothingMode      = SmoothingMode.AntiAlias;
+        g2.DrawImage(_cover, 0, 0, Width, Height);
+        return _scaled;
+    }
+
+    protected override void OnSizeChanged(EventArgs e)
+    {
+        base.OnSizeChanged(e);
+        _scaled?.Dispose();
+        _scaled = null; // invalidate cache when the control is resized
         Invalidate();
     }
 
@@ -396,54 +432,70 @@ internal sealed class Win11Cover : Control
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
 
-        using var clipPath = PopupMenu.RoundedRectPath(ClientRectangle, Radius);
-        var oldClip = g.Clip;
-        g.SetClip(clipPath, CombineMode.Replace);
+        // Single path for both fill and border - SetClip() is always
+        // hard-edged regardless of SmoothingMode and left a jagged corner;
+        // FillPath properly antialiases the rounded rect edge.
+        using var path = PopupMenu.RoundedRectPath(new Rectangle(0, 0, Width - 1, Height - 1), Radius);
 
-        using var bgBrush = new SolidBrush(PlaceholderBg);
-        g.FillRectangle(bgBrush, ClientRectangle);
-
-        if (_cover != null)
+        var scaled = GetScaled();
+        if (scaled != null)
         {
-            g.DrawImage(_cover, ClientRectangle);
+            using var brush = new TextureBrush(scaled, WrapMode.Clamp);
+            g.FillPath(brush, path);
         }
         else
         {
+            using var bgBrush = new SolidBrush(PlaceholderBg);
+            g.FillPath(bgBrush, path);
+
             var icon = IconLoader.LoadPopupIcon("music-note");
             int iw = Width / 3, ih = Height / 3;
             var rect = new Rectangle((Width - iw) / 2, (Height - ih) / 2, iw, ih);
 
             using var ia = new ImageAttributes();
-            var matrix = new ColorMatrix { Matrix33 = 0.35f }; // dim the placeholder icon
+            var matrix = new ColorMatrix { Matrix33 = 0.35f };
             ia.SetColorMatrix(matrix);
             g.DrawImage(icon, rect, 0, 0, icon.Width, icon.Height, GraphicsUnit.Pixel, ia);
         }
 
-        g.SetClip(oldClip, CombineMode.Replace);
-
-        using var borderPath = PopupMenu.RoundedRectPath(new Rectangle(0, 0, Width - 1, Height - 1), Radius);
         using var pen = new Pen(CoverBorderColor, 1f);
-        g.DrawPath(pen, borderPath);
+        g.DrawPath(pen, path);
     }
 }
 
 internal sealed class InfoRow : Control
 {
-    private Image          _icon;
+    private Image           _icon;
     private readonly string _iconName;
-    private string         _text = "";
+    private string          _text = "";
     private bool            _hover;
+    private bool            _overflowing;
+    private float           _scrollOffset;
     private static readonly Font TextFont = new("Segoe UI", 9f);
+
+    private const int IconSize   = 15;
+    private const int MarqueeGap = 30;
+
+    private readonly System.Windows.Forms.Timer _marqueeTimer;
 
     public InfoRow(string iconName, int width)
     {
         _iconName = iconName;
-        _icon = IconLoader.LoadPopupIcon(iconName);
-        Size  = new Size(width, 24);
-        Cursor = Cursors.Hand;
+        _icon   = IconLoader.LoadPopupIcon(iconName);
+        Size    = new Size(width, 24);
+        Cursor  = Cursors.Hand;
+        TabStop = true;
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                   ControlStyles.OptimizedDoubleBuffer, true);
-        // No explicit BackColor - see the note in Win11IconButton.
+
+        _marqueeTimer = new System.Windows.Forms.Timer { Interval = 30 };
+        _marqueeTimer.Tick += (_, _) =>
+        {
+            int w = TextRenderer.MeasureText(_text, TextFont).Width;
+            _scrollOffset += 1;
+            if (_scrollOffset > w + MarqueeGap) _scrollOffset = 0;
+            Invalidate();
+        };
     }
 
     public void ReloadIcon()
@@ -455,16 +507,54 @@ internal sealed class InfoRow : Control
     public void SetText(string text)
     {
         _text = text;
+        _scrollOffset = 0;
+        int maxW = Width - (IconSize + 8);
+        _overflowing = TextRenderer.MeasureText(_text, TextFont).Width > maxW;
         Invalidate();
     }
 
-    protected override void OnMouseEnter(EventArgs e) { _hover = true;  Invalidate(); base.OnMouseEnter(e); }
-    protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnMouseEnter(EventArgs e)
+    {
+        _hover = true;
+        if (_overflowing) { _marqueeTimer.Start(); } // resume from current offset
+        Invalidate();
+        base.OnMouseEnter(e);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        _hover = false;
+        _marqueeTimer.Stop(); // keep _scrollOffset so next hover continues smoothly
+        Invalidate();
+        base.OnMouseLeave(e);
+    }
+
+    protected override void OnGotFocus(EventArgs e)
+    {
+        if (_overflowing) _marqueeTimer.Start();
+        Invalidate();
+        base.OnGotFocus(e);
+    }
+    protected override void OnLostFocus(EventArgs e)
+    {
+        _marqueeTimer.Stop();
+        Invalidate();
+        base.OnLostFocus(e);
+    }
+
+    protected override bool IsInputKey(Keys keyData)
+        => keyData is Keys.Enter or Keys.Space || base.IsInputKey(keyData);
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.KeyCode is Keys.Enter or Keys.Space) { OnClick(EventArgs.Empty); e.Handled = true; }
+    }
 
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.SmoothingMode     = SmoothingMode.AntiAlias;
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
         const int iconSize = 15;
@@ -475,22 +565,40 @@ internal sealed class InfoRow : Control
         ia.SetColorMatrix(matrix);
         g.DrawImage(_icon, iconRect, 0, 0, _icon.Width, _icon.Height, GraphicsUnit.Pixel, ia);
 
-        int textX = iconSize + 8;
+        int textX        = iconSize + 8;
         int maxTextWidth = Width - textX;
-        string shown = Truncate(_text, TextFont, maxTextWidth);
+        var color        = (_hover || Focused) ? PopupMenu.TextFg : PopupMenu.SubTextFg;
+        using var brush  = new SolidBrush(color);
+        var fmt = new StringFormat { LineAlignment = StringAlignment.Center, FormatFlags = StringFormatFlags.NoWrap };
 
-        var color = _hover ? PopupMenu.TextFg : PopupMenu.SubTextFg;
-        using var brush = new SolidBrush(color);
-        var textRect = new RectangleF(textX, 0, maxTextWidth, Height);
-        var fmt = new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.None };
-        g.DrawString(shown, TextFont, brush, textRect, fmt);
+        if (_overflowing && (_hover || Focused))
+        {
+            var oldClip = g.Clip;
+            g.SetClip(new RectangleF(textX, 0, maxTextWidth, Height), CombineMode.Intersect);
+            int tw    = TextRenderer.MeasureText(_text, TextFont).Width;
+            float x1  = textX - _scrollOffset;
+            g.DrawString(_text, TextFont, brush, new RectangleF(x1, 0, tw + 400, Height), fmt);
+            float x2  = x1 + tw + MarqueeGap;
+            g.DrawString(_text, TextFont, brush, new RectangleF(x2, 0, tw + 400, Height), fmt);
+            g.SetClip(oldClip, CombineMode.Replace);
+        }
+        else
+        {
+            string shown = _overflowing ? Truncate(_text, TextFont, maxTextWidth) : _text;
+            g.DrawString(shown, TextFont, brush, new RectangleF(textX, 0, maxTextWidth, Height), fmt);
+        }
+
+        if (Focused)
+        {
+            using var pen = new Pen(PopupMenu.TextFg, 1f) { DashStyle = DashStyle.Dot };
+            g.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+        }
     }
 
     private static string Truncate(string text, Font font, int maxWidth)
     {
         if (string.IsNullOrEmpty(text)) return text;
         if (TextRenderer.MeasureText(text, font).Width <= maxWidth) return text;
-
         const string ellipsis = "…";
         string result = text;
         while (result.Length > 1)
@@ -500,5 +608,61 @@ internal sealed class InfoRow : Control
                 return result + ellipsis;
         }
         return ellipsis;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) { _marqueeTimer.Dispose(); }
+        base.Dispose(disposing);
+    }
+}
+
+/// <summary>
+/// Keyboard-navigable Exit button at the bottom of the popup.
+/// Uses TabStop so it's reachable by Tab key; Enter/Space activates it.
+/// </summary>
+internal sealed class ExitButton : Control
+{
+    private bool _hover;
+    private static readonly Font ExitFont = new("Segoe UI", 8.5f);
+
+    public ExitButton()
+    {
+        Cursor  = Cursors.Hand;
+        TabStop = true;
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
+                  ControlStyles.OptimizedDoubleBuffer, true);
+    }
+
+    protected override void OnMouseEnter(EventArgs e) { _hover = true;  Invalidate(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnGotFocus(EventArgs e)   { Invalidate(); base.OnGotFocus(e); }
+    protected override void OnLostFocus(EventArgs e)  { Invalidate(); base.OnLostFocus(e); }
+
+    protected override bool IsInputKey(Keys keyData)
+        => keyData is Keys.Enter or Keys.Space || base.IsInputKey(keyData);
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.KeyCode is Keys.Enter or Keys.Space) { OnClick(EventArgs.Empty); e.Handled = true; }
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode     = SmoothingMode.AntiAlias;
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+        var color = (_hover || Focused) ? PopupMenu.TextFg : PopupMenu.SubTextFg;
+        using var brush = new SolidBrush(color);
+        var fmt = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+        g.DrawString("Exit", ExitFont, brush, ClientRectangle, fmt);
+
+        if (Focused)
+        {
+            using var pen = new Pen(PopupMenu.SubTextFg, 1f) { DashStyle = DashStyle.Dot };
+            g.DrawRectangle(pen, 1, 1, Width - 3, Height - 3);
+        }
     }
 }
