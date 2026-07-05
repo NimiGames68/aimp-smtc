@@ -8,7 +8,7 @@ AIMP has no native SMTC support, and the [plugin that was on the store](https://
 
 ## Features
 
-- Track title, artist, album and cover art (works for local files, online radio and podcasts)
+- Track title, artist, album, cover art and song lenght (works for local files, online radio and podcasts)
 - Play / pause / next / previous, shuffle and repeat
 - A popup in the system tray with controls, with a Windows 11-style, and clickable title/artist/album rows that take you to [last.fm](https://last.fm)
 - Light and dark theme, following the Windows system theme automatically
