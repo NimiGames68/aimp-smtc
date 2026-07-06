@@ -2,7 +2,7 @@
 
 <img src="https://gitlab.com/NimiGames68/aimp-smtc/-/raw/main/assets/aimp-smtc-logo.png" width="140" align="right">
 
-A small tray app in C# that connects [AIMP](https://www.aimp.ru/) to the Windows **System Media Transport Controls** (SMTC)
+A small tray app in C# that connects [AIMP](https://www.aimp.ru/) to the Windows **System Media Transport Controls** (SMTC) using the [AIMP SDK](https://aimp.ru/?do=download&os=desktop&cat=sdk)
 
 AIMP has no native SMTC support, and the [plugin that was on the store](https://aimp.ru/?do=catalog&rec_id=1097) wasn't enough for me, so i built my own.
 
