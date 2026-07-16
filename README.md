@@ -19,7 +19,7 @@ A already compiled version is in the [releases tab](https://github.com/NimiGames
 
 ‼️**This program requires [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)**‼️
 
-**[Direct Download of .NET 8](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-8.0.422-windows-x64-installer)**
+**[Direct Download of .NET 8](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-8.0.423-windows-x64-installer)**
 
 Want to run the program when you start windows? Run `shell:startup` in the win+r dialog box, and create a shortcut to that exe.
 
