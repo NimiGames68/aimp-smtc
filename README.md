@@ -122,3 +122,8 @@ Feel free to contact me
 [Discord](https://discordapp.com/users/842801927904559128) - @NimiGames68
 
 [Telegram](https://t.me/nimig68) - @nimig68
+
+
+<a href="https://aimp.ru/">
+<img src="https://aimp.ru/images/88x31.png" width="88" height="31" border="0" alt="AIMP - Free Audio Player">
+</a>
