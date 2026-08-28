@@ -2,15 +2,19 @@
 
 <img src="https://gitlab.com/NimiGames68/aimp-smtc/-/raw/main/assets/aimp-smtc-logo.png" width="140" align="right">
 
+![Downloads](https://img.shields.io/github/downloads/NimiGames68/aimp-smtc/total)
+![C#](https://img.shields.io/badge/C%23-239120?logo=csharp&logoColor=white)
+[![License](https://img.shields.io/github/license/NimiGames68/aimp-smtc)](LICENSE)
+
 A small tray app in C# that connects [AIMP](https://www.aimp.ru/) to the Windows **System Media Transport Controls** (SMTC) using the [AIMP SDK](https://aimp.ru/?do=download&os=desktop&cat=sdk)
 
-AIMP has no native SMTC support, and the [plugin that was on the store](https://aimp.ru/?do=catalog&rec_id=1097) wasn't enough for me, so i built my own.
+AIMP has no native SMTC support, and I wanted to control AIMP without opening the app just to pause, so I built this
 
 ## Features
 
 - Track title, artist, album, cover art and song lenght (works for local files, online radio and podcasts)
 - Play / pause / next / previous, shuffle and repeat
-- A popup in the system tray with controls, with a Windows 11-style, and clickable title/artist/album rows that take you to [last.fm](https://last.fm)
+- A popup in the system tray with controls, with a Windows 11-style
 - Light and dark theme, following the Windows system theme automatically
 
 ## Install
@@ -70,22 +74,6 @@ The tray popup (`PopupMenu.cs`) is a separate independent UI. It talks to `SmtcB
 |[FluentFlyout](https://github.com/unchihugo/FluentFlyout)|Built-in Pop-up|Windows|[Music Presence](https://github.com/ungive/discord-music-presence)|
 |-|-|-|-|
 | <img src="https://gitlab.com/NimiGames68/aimp-smtc/-/raw/main/assets/Captura_de_ecr%C3%A3_2026-06-22_141956.png" width="245"> | <img src="https://gitlab.com/NimiGames68/aimp-smtc/-/raw/main/assets/Captura_de_ecr%C3%A3_2026-06-22_165634.png" width="230"> | <img src="https://gitlab.com/NimiGames68/aimp-smtc/-/raw/main/assets/Captura_de_ecr%C3%A3_2026-06-22_170021.png" width="245"> | <img src="https://gitlab.com/NimiGames68/aimp-smtc/-/raw/main/assets/Captura_de_ecr%C3%A3_2026-06-22_202005.png" width="260"> 
-
-## Windows 10 Media Control Plugin vs AIMP SMTC
-
-||AIMP SMTC|Windows 10 Media Control|
-|--------|---------|------------------------|
-|Song Title|Yes|Yes
-|Artist Name|Yes|Yes
-|Album Title|Yes|No
-|Previous|Yes|Yes
-|Next|Yes|Yes
-|Song length|Yes|No
-|Album Cover|Yes|Yes
-|Shuffle|Yes|No
-|Repeat|Yes|No
-|Runs in the background?|Yes|No
-|Needs much setup?|Yes|No
 
 ## Project layout
 
