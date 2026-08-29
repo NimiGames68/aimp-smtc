@@ -2,7 +2,7 @@
 
 <img src="https://gitlab.com/NimiGames68/aimp-smtc/-/raw/main/assets/aimp-smtc-logo.png" width="140" align="right">
 
-![Downloads](https://img.shields.io/github/downloads/NimiGames68/aimp-smtc/total)
+[![Downloads](https://img.shields.io/github/downloads/NimiGames68/aimp-smtc/total)](https://github.com/NimiGames68/aimp-smtc/releases)
 ![C#](https://img.shields.io/badge/C%23-239120?logo=csharp&logoColor=white)
 [![License](https://img.shields.io/github/license/NimiGames68/aimp-smtc)](LICENSE)
 
@@ -19,11 +19,11 @@ AIMP has no native SMTC support, and I wanted to control AIMP without opening th
 
 ## Install
 
-A already compiled version is in the [releases tab](https://github.com/NimiGames68/aimp-smtc/releases/latest), the exe should be at bin\Release\net8.0-windows10.0.19041.0\win-x64\AimpSmtc.exe
+A already compiled build is in the [releases tab](https://github.com/NimiGames68/aimp-smtc/releases/latest), the exe should be at bin\Release\net8.0-windows10.0.19041.0\win-x64\AimpSmtc.exe (I'm too lazy to make a setup)
 
 ‼️**This program requires [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)**‼️
 
-**[Direct Download of .NET 8](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-8.0.423-windows-x64-installer)**
+**[Direct Download of .NET 8](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-8.0.424-windows-x64-installer)**
 
 Want to run the program when you start windows? Run `shell:startup` in the win+r dialog box, and create a shortcut to that exe.
 
