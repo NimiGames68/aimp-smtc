@@ -1,5 +1,7 @@
 # AIMP SMTC
 
+This repo is been archived since AIMP now has native SMTC support.
+
 <img src="https://gitlab.com/NimiGames68/aimp-smtc/-/raw/main/assets/aimp-smtc-logo.png" width="140" align="right">
 
 [![Downloads](https://img.shields.io/github/downloads/NimiGames68/aimp-smtc/total)](https://github.com/NimiGames68/aimp-smtc/releases)
